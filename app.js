@@ -1,3 +1,12 @@
+const client = contentful.createClient({
+  // This is the space ID. A space is like a project folder in Contentful terms
+  space: "41ivvavkcadr",
+  // This is the access token for this space. Normally you get both ID and the token in the Contentful web app
+  accessToken: "obGee38wVN9YxiNlna5GyJyKnzwarjF0AaGLtlnXY2k"
+});
+
+// console.log(client);
+
 // variables
 
 const cartBtn = document.querySelector(".cart-btn");
@@ -19,15 +28,22 @@ let buttonsDOM = [];
 class Products {
   async getProducts() {
     try {
+      let contentful = await client.getEntries({
+        content_type: "comfyHouseProducts"
+      });
+
       let result = await fetch("products.json");
       let data = await result.json();
-      let products = data.items;
+
+      let products = contentful.items;
+      console.log(products);
       products = products.map(item => {
         const { title, price } = item.fields;
         const { id } = item.sys;
         const image = item.fields.image.fields.file.url;
         return { title, price, id, image };
       });
+      
       return products;
     } catch (error) {
       console.log(error);
@@ -116,7 +132,6 @@ class UI {
         <i class="fas fa-chevron-down" data-id=${item.id}></i>
       </div>`;
     cartContent.appendChild(div);
-    
   }
 
   showCart() {
@@ -149,21 +164,31 @@ class UI {
     //cart functionality
     cartContent.addEventListener("click", event => {
       if (event.target.classList.contains("remove-item")) {
-
         let removeItem = event.target;
         let id = removeItem.dataset.id;
         cartContent.removeChild(removeItem.parentElement.parentElement);
         this.removeItem(id);
       } else if (event.target.classList.contains("fa-chevron-up")) {
         let addAmount = event.target;
-        console.log(addAmount);
         let id = addAmount.dataset.id;
-        
         let tempItem = cart.find(item => item.id === id);
         tempItem.amount = tempItem.amount + 1;
         Storage.saveCart(cart);
         this.setCartValues(cart);
-        addAmount.nextElementSibling.innerText = tempItem.amount
+        addAmount.nextElementSibling.innerText = tempItem.amount;
+      } else if (event.target.classList.contains("fa-chevron-down")) {
+        let lowerAmount = event.target;
+        let id = lowerAmount.dataset.id;
+        let tempItem = cart.find(item => item.id === id);
+        tempItem.amount = tempItem.amount - 1;
+        if (tempItem.amount > 0) {
+          Storage.saveCart(cart);
+          this.setCartValues(cart);
+          lowerAmount.previousElementSibling.innerText = tempItem.amount;
+        } else {
+          cartContent.removeChild(lowerAmount.parentElement.parentElement);
+          this.removeItem(id);
+        }
       }
     });
   }
@@ -171,7 +196,7 @@ class UI {
   clearCart() {
     let cartItems = cart.map(item => item.id);
     cartItems.forEach(id => this.removeItem(id));
-    
+
     while (cartContent.children.length > 0) {
       cartContent.removeChild(cartContent.children[0]);
     }
